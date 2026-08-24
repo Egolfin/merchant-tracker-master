@@ -1,8 +1,0 @@
-{
-  "name": "merchant-tracker-master",
-  "version": "1.0.0",
-  "entry": "index.html",
-  "data_source": "single-google-sheets-workbook",
-  "primary_key": "Store ID",
-  "status": "repo-ready-master"
-}
