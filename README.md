@@ -68,3 +68,21 @@ Response contains `success`, `spreadsheetId`, `spreadsheetName`, `sheetName`, `h
 ## Production note
 
 Do not place OAuth credentials or secrets in the HTML repository.
+
+# Merchant Tracker Master v4
+
+This version fixes the lead-list connection path.
+
+## Important
+- `index.html` contains the deployed Apps Script `/exec` URL and the missing `buildBackendJsonpUrl()` helper.
+- `Code.gs` is the Apps Script backend bound to the approved master workbook.
+- The master workbook is the single source of truth.
+
+## Deployment
+1. Open the master workbook in Google Sheets.
+2. Open Extensions -> Apps Script.
+3. Replace Code.gs with the supplied Code.gs.
+4. Keep the manifest in appsscript.json.
+5. Deploy as a Web App and make sure the deployed access policy allows the tracker to call it.
+6. Host index.html (for example GitHub Pages).
+7. Open the tracker and click Test Connection, then Connect / Refresh Lead List.
