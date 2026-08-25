@@ -1258,10 +1258,6 @@
         leadListRecords = [];
         leadListSource = { url: WORKBOOK_URL, sheetName: LEAD_SHEET_NAME };
         Object.keys(localSessionHistory).forEach(key => { localSessionHistory[key] = []; });
-        try {
-            [CACHE_KEY, PENDING_KEY, LAST_SYNC_KEY, UNDO_KEY, LEAD_LIST_CACHE_KEY]
-                .forEach(key => localStorage.removeItem(key));
-        } catch {}
         const savedSource = readJsonStorage(LEAD_LIST_SOURCE_KEY, null);
         leadListSource = savedSource && typeof savedSource === 'object'
             ? { url: String(savedSource.url || '').trim(), sheetName: String(savedSource.sheetName || LEAD_SHEET_NAME).trim() || LEAD_SHEET_NAME }
@@ -1289,6 +1285,11 @@
             throw new Error('Only the approved new master workbook is allowed. Paste the URL for "Copy of CA Lead List Q3 - 2026 - Esteban Golfin".');
         }
         return id;
+    }
+
+    function getAppsScriptUrl() {
+        if (!APPS_SCRIPT_URL) throw new Error('Apps Script Web App URL is not configured.');
+        return APPS_SCRIPT_URL;
     }
 
     function buildBackendJsonpUrl(action, params = {}) {
@@ -1452,7 +1453,7 @@
                 getField(record, ['Business Name','Business name','Store Name','Store']),
                 getField(record, ['Store ID','Store Id']),
                 getField(record, ['Business ID','Business Id']),
-                getField(record, ['Rx Name','DM Name','Owner','Email','DM Phone','Lead Status','Pipeline Stage'])
+                getField(record, ['Rx Name','DM Name','Owner','Email','Email Address','DM Phone','Dm Phone','Lead Status','Pipeline Stage'])
             ].join(' ').toLowerCase();
             const exact = [getField(record,['Business Name','Business name','Store Name','Store']), getField(record,['Store ID','Store Id']), getField(record,['Business ID','Business Id'])]
                 .some(v => normalizeText(v) === q);
@@ -1473,9 +1474,9 @@
             ['Business ID', getField(record,['Business ID','Business Id'])],
             ['Rx Name', getField(record,['Rx Name'])],
             ['DM Name', getField(record,['DM Name'])],
-            ['Email', getField(record,['Email','DM Email'])],
-            ['DM Phone', getField(record,['DM Phone','Phone'])],
-            ['GMV', getField(record,['GMV'])],
+            ['Email', getField(record,['Email','Email Address','DM Email'])],
+            ['DM Phone', getField(record,['DM Phone','Dm Phone','Phone'])],
+            ['GMV', getField(record,['GMV','Gmv'])],
             ['Photo Coverage', getField(record,['Photo Coverage'])],
             ['Description Coverage', getField(record,['Description Coverage'])],
             ['Uptime', getField(record,['Uptime'])],
@@ -1885,7 +1886,11 @@
             if(!merchants.has(k)) merchants.set(k,{key:k,name:getMerchantName(r),records:[]});
             merchants.get(k).records.push(r);
         });
-        const merchant=merchants.get(key) || merchants.get(normalizeText(key));
+        let merchant=merchants.get(key) || merchants.get(normalizeText(key));
+        if(!merchant) {
+            const lead = getLeadMasterForMerchantKey(key) || leadListRecords.find(r => normalizeText(getField(r,['Store ID','Store Id','Business ID','Business Id'])) === normalizeText(key));
+            if (lead) merchant = { key:getMerchantKey(lead), name:getMerchantName(lead), records:[Object.assign({}, lead, {__sourceCategory:'leadMaster'})], leadRecord:lead };
+        }
         if(!merchant) return;
         currentMerchantResult=merchant;
         const modal=ensureMerchantModal(); const body=document.getElementById('merchant360Body');
@@ -2196,6 +2201,12 @@
     window.addEventListener('load', async ()=>{
         resetLegacyClientState();
         readLeadListSource();
+        const cachedLeads = readJsonStorage(LEAD_LIST_CACHE_KEY, []);
+        if (Array.isArray(cachedLeads) && cachedLeads.length) {
+            leadListRecords = cachedLeads;
+            renderLeadListMeta();
+            refreshAllSmartViews();
+        }
         updatePendingSyncIndicator();
         await loadLeadList(true).catch(()=>{});
         await flushPendingWrites();
@@ -2220,7 +2231,6 @@
     window.toggleCoFundedFields = toggleCoFundedFields;
     window.handleFormSubmit = handleFormSubmit;
     window.syncGlobalHistory = syncGlobalHistory;
-    window.saveLeadListSource = saveLeadListSource;
     window.loadLeadList = loadLeadList;
     window.clearLeadListSource = clearLeadListSource;
     window.quickOpenTab = quickOpenTab;
